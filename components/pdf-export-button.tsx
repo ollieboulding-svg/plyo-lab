@@ -5,9 +5,10 @@ import { Download, Loader2 } from "lucide-react";
 
 interface PdfExportButtonProps {
   targetId: string;
+  variant?: "default" | "compact";
 }
 
-export function PdfExportButton({ targetId }: PdfExportButtonProps) {
+export function PdfExportButton({ targetId, variant = "default" }: PdfExportButtonProps) {
   const [loading, setLoading] = useState(false);
 
   async function handleExport() {
@@ -19,12 +20,11 @@ export function PdfExportButton({ targetId }: PdfExportButtonProps) {
       const el = document.getElementById(targetId);
       if (!el) return;
 
-      // Temporarily make the background opaque for the capture
-      el.style.backgroundColor = "#0a0a0f";
+      el.style.backgroundColor = "#09090b";
 
       const canvas = await html2canvas(el, {
         scale: 2,
-        backgroundColor: "#0a0a0f",
+        backgroundColor: "#09090b",
         useCORS: true,
       });
 
@@ -64,7 +64,11 @@ export function PdfExportButton({ targetId }: PdfExportButtonProps) {
       type="button"
       onClick={handleExport}
       disabled={loading}
-      className="flex items-center gap-2 rounded-lg bg-muted border border-border px-4 py-2.5 text-sm font-medium text-card-foreground hover:bg-muted/80 transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-ring/50"
+      className={
+        variant === "compact"
+          ? "flex items-center gap-2 rounded-xl bg-muted border border-border px-3 py-2 text-xs font-medium text-card-foreground hover:bg-muted/80 transition-all disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-ring/50"
+          : "flex items-center gap-2 rounded-xl bg-muted border border-border px-4 py-3 text-sm font-semibold text-card-foreground hover:bg-muted/80 hover:border-border/80 transition-all disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-ring/50"
+      }
     >
       {loading ? (
         <Loader2 className="w-4 h-4 animate-spin" />

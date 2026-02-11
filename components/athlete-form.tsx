@@ -12,7 +12,16 @@ import {
   type ScoreResult,
   type RawInputs,
 } from "@/lib/scoring";
-import { User, Timer, ArrowUp, ArrowRight, Dumbbell, Heart, RotateCcw } from "lucide-react";
+import {
+  User,
+  Timer,
+  ArrowUp,
+  ArrowRight,
+  Dumbbell,
+  Heart,
+  RotateCcw,
+  Info,
+} from "lucide-react";
 
 interface AthleteFormProps {
   onBaseline: (result: ScoreResult, meta: AthleteMeta) => void;
@@ -29,7 +38,12 @@ export interface AthleteMeta {
   isRetest: boolean;
 }
 
-export function AthleteForm({ onBaseline, onRetest, onReset, hasBaseline }: AthleteFormProps) {
+export function AthleteForm({
+  onBaseline,
+  onRetest,
+  onReset,
+  hasBaseline,
+}: AthleteFormProps) {
   const [name, setName] = useState("");
   const [gender, setGender] = useState<Gender>("male");
   const [ageGroup, setAgeGroup] = useState<AgeGroup>("16-17");
@@ -48,8 +62,14 @@ export function AthleteForm({ onBaseline, onRetest, onReset, hasBaseline }: Athl
     const strengthVal = parseFloat(strength);
     const enduranceVal = parseTimeToMinutes(endurance);
 
-    if ([sprintVal, verticalVal, broadVal, strengthVal, enduranceVal].some((v) => Number.isNaN(v))) {
-      setError("Please complete all fields. 1km must be mm.ss (e.g. 3.56) or mm:ss (e.g. 3:56).");
+    if (
+      [sprintVal, verticalVal, broadVal, strengthVal, enduranceVal].some((v) =>
+        Number.isNaN(v)
+      )
+    ) {
+      setError(
+        "Please complete all fields. 1km must be mm.ss (e.g. 3.56) or mm:ss (e.g. 3:56)."
+      );
       return null;
     }
     setError(null);
@@ -60,14 +80,26 @@ export function AthleteForm({ onBaseline, onRetest, onReset, hasBaseline }: Athl
     const raw = getRawInputs();
     if (!raw) return;
     const result = calculateScores(gender, ageGroup, raw);
-    onBaseline(result, { name: name || "Athlete", gender, ageGroup, sport, isRetest: false });
+    onBaseline(result, {
+      name: name || "Athlete",
+      gender,
+      ageGroup,
+      sport,
+      isRetest: false,
+    });
   }
 
   function handleRetest() {
     const raw = getRawInputs();
     if (!raw) return;
     const result = calculateScores(gender, ageGroup, raw);
-    onRetest(result, { name: name || "Athlete", gender, ageGroup, sport, isRetest: true });
+    onRetest(result, {
+      name: name || "Athlete",
+      gender,
+      ageGroup,
+      sport,
+      isRetest: true,
+    });
   }
 
   function handleReset() {
@@ -82,36 +114,41 @@ export function AthleteForm({ onBaseline, onRetest, onReset, hasBaseline }: Athl
   }
 
   return (
-    <div className="rounded-xl bg-card p-6 border border-border">
-      <div className="flex items-center gap-2 mb-6">
-        <User className="w-5 h-5 text-primary" />
-        <h2 className="text-lg font-semibold text-card-foreground">Athlete Details</h2>
+    <div className="rounded-2xl bg-card p-6 border border-border">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-primary/10">
+          <User className="w-4 h-4 text-primary" />
+        </div>
+        <div>
+          <h2 className="text-base font-bold text-card-foreground">
+            Athlete Details
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Enter profile and test results
+          </p>
+        </div>
       </div>
 
       {/* Profile Fields */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div className="sm:col-span-2">
-          <label htmlFor="athlete-name" className="block text-sm font-medium text-muted-foreground mb-1.5">
-            Athlete Name
-          </label>
+          <FormLabel htmlFor="athlete-name">Athlete Name</FormLabel>
           <input
             id="athlete-name"
             type="text"
             placeholder="Enter name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
+            className="w-full rounded-xl border border-border bg-input px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 transition-all"
           />
         </div>
         <div>
-          <label htmlFor="gender-select" className="block text-sm font-medium text-muted-foreground mb-1.5">
-            Gender
-          </label>
+          <FormLabel htmlFor="gender-select">Gender</FormLabel>
           <select
             id="gender-select"
             value={gender}
             onChange={(e) => setGender(e.target.value as Gender)}
-            className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
+            className="w-full rounded-xl border border-border bg-input px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 transition-all"
           >
             {genders.map((g) => (
               <option key={g} value={g}>
@@ -121,14 +158,15 @@ export function AthleteForm({ onBaseline, onRetest, onReset, hasBaseline }: Athl
           </select>
         </div>
         <div>
-          <label htmlFor="age-select" className="block text-sm font-medium text-muted-foreground mb-1.5">
-            Age Group
-          </label>
+          <FormLabel htmlFor="age-select">
+            <span>Age Group</span>
+            <Tooltip text="Benchmarks are grouped by age range to compare against peers" />
+          </FormLabel>
           <select
             id="age-select"
             value={ageGroup}
             onChange={(e) => setAgeGroup(e.target.value as AgeGroup)}
-            className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
+            className="w-full rounded-xl border border-border bg-input px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 transition-all"
           >
             {ageGroups.map((a) => (
               <option key={a} value={a}>
@@ -138,14 +176,12 @@ export function AthleteForm({ onBaseline, onRetest, onReset, hasBaseline }: Athl
           </select>
         </div>
         <div className="sm:col-span-2">
-          <label htmlFor="sport-select" className="block text-sm font-medium text-muted-foreground mb-1.5">
-            Sport
-          </label>
+          <FormLabel htmlFor="sport-select">Sport</FormLabel>
           <select
             id="sport-select"
             value={sport}
             onChange={(e) => setSport(e.target.value)}
-            className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
+            className="w-full rounded-xl border border-border bg-input px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 transition-all"
           >
             {sports.map((s) => (
               <option key={s} value={s}>
@@ -158,7 +194,7 @@ export function AthleteForm({ onBaseline, onRetest, onReset, hasBaseline }: Athl
 
       {/* Test Inputs */}
       <div className="border-t border-border pt-6 mb-6">
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4">
           Test Results
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -207,44 +243,89 @@ export function AthleteForm({ onBaseline, onRetest, onReset, hasBaseline }: Athl
               placeholder="e.g. 4.30 or 4:30"
               value={endurance}
               onChange={setEndurance}
+              tooltip="Enter time as mm.ss (e.g. 3.56 = 3min 56sec) or mm:ss (e.g. 3:56)"
             />
           </div>
         </div>
       </div>
 
       {error && (
-        <div className="rounded-lg bg-destructive/10 border border-destructive/30 px-4 py-3 mb-4">
+        <div className="rounded-xl bg-destructive/10 border border-destructive/30 px-4 py-3 mb-4">
           <p className="text-sm text-destructive">{error}</p>
         </div>
       )}
 
       {/* Action Buttons */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col gap-3">
         <button
           type="button"
           onClick={handleBaseline}
-          className="flex-1 min-w-[140px] rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors focus:outline-none focus:ring-2 focus:ring-ring/50"
+          className="w-full rounded-xl bg-primary px-4 py-3.5 text-sm font-bold text-primary-foreground hover:bg-primary/90 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring/50 active:scale-[0.98]"
         >
           Run Baseline
         </button>
-        <button
-          type="button"
-          onClick={handleRetest}
-          disabled={!hasBaseline}
-          className="flex-1 min-w-[140px] rounded-lg border border-primary px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary/10 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-ring/50"
-        >
-          Run Retest
-        </button>
-        <button
-          type="button"
-          onClick={handleReset}
-          className="flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors focus:outline-none focus:ring-2 focus:ring-ring/50"
-        >
-          <RotateCcw className="w-4 h-4" />
-          New Athlete
-        </button>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={handleRetest}
+            disabled={!hasBaseline}
+            className="flex-1 rounded-xl border border-primary/50 bg-primary/5 px-4 py-3 text-sm font-bold text-primary hover:bg-primary/10 transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-ring/50"
+          >
+            Run Retest
+          </button>
+          <button
+            type="button"
+            onClick={handleReset}
+            className="flex items-center justify-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring/50"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Reset
+          </button>
+        </div>
       </div>
     </div>
+  );
+}
+
+function FormLabel({
+  htmlFor,
+  children,
+}: {
+  htmlFor: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label
+      htmlFor={htmlFor}
+      className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground mb-2"
+    >
+      {children}
+    </label>
+  );
+}
+
+function Tooltip({ text }: { text: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        onFocus={() => setShow(true)}
+        onBlur={() => setShow(false)}
+        className="text-muted-foreground hover:text-foreground transition-colors"
+        aria-label={text}
+      >
+        <Info className="w-3.5 h-3.5" />
+      </button>
+      {show && (
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 rounded-lg bg-foreground px-3 py-2 text-xs text-background font-normal shadow-lg z-50">
+          {text}
+          <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-foreground" />
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -256,6 +337,7 @@ function TestInput({
   placeholder,
   value,
   onChange,
+  tooltip,
 }: {
   id: string;
   icon: React.ReactNode;
@@ -264,13 +346,18 @@ function TestInput({
   placeholder: string;
   value: string;
   onChange: (val: string) => void;
+  tooltip?: string;
 }) {
   return (
     <div>
-      <label htmlFor={id} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground mb-1.5">
+      <label
+        htmlFor={id}
+        className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground mb-2"
+      >
         <span className="text-primary">{icon}</span>
         {label}
-        <span className="text-xs text-muted-foreground/60">({unit})</span>
+        <span className="text-xs text-muted-foreground/50">({unit})</span>
+        {tooltip && <Tooltip text={tooltip} />}
       </label>
       <input
         id={id}
@@ -279,7 +366,7 @@ function TestInput({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 font-mono"
+        className="w-full rounded-xl border border-border bg-input px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 font-mono transition-all"
       />
     </div>
   );
