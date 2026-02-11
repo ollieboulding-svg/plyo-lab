@@ -28,6 +28,7 @@ export function HeroSection({
         <img
           src="/hero-bg.jpg"
           alt=""
+          crossOrigin="anonymous"
           className="h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-background via-background/90 to-background/70" />

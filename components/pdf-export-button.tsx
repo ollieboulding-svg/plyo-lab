@@ -6,9 +6,14 @@ import { Download, Loader2 } from "lucide-react";
 interface PdfExportButtonProps {
   targetId: string;
   variant?: "default" | "compact";
+  athleteName?: string;
 }
 
-export function PdfExportButton({ targetId, variant = "default" }: PdfExportButtonProps) {
+export function PdfExportButton({
+  targetId,
+  variant = "default",
+  athleteName,
+}: PdfExportButtonProps) {
   const [loading, setLoading] = useState(false);
 
   async function handleExport() {
@@ -18,42 +23,68 @@ export function PdfExportButton({ targetId, variant = "default" }: PdfExportButt
       const { jsPDF } = await import("jspdf");
 
       const el = document.getElementById(targetId);
-      if (!el) return;
+      if (!el) {
+        console.log("[v0] PDF target element not found:", targetId);
+        setLoading(false);
+        return;
+      }
 
+      const prevStyle = el.style.cssText;
       el.style.backgroundColor = "#09090b";
+      el.style.color = "#fafafa";
+      el.style.padding = "24px";
 
       const canvas = await html2canvas(el, {
         scale: 2,
         backgroundColor: "#09090b",
         useCORS: true,
+        allowTaint: true,
+        logging: false,
+        windowWidth: 1200,
+        onclone: (clonedDoc) => {
+          const svgs = clonedDoc.querySelectorAll("svg");
+          svgs.forEach((svg) => {
+            svg.setAttribute(
+              "width",
+              svg.getBoundingClientRect().width.toString()
+            );
+            svg.setAttribute(
+              "height",
+              svg.getBoundingClientRect().height.toString()
+            );
+          });
+        },
       });
 
-      el.style.backgroundColor = "";
+      el.style.cssText = prevStyle;
 
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
 
       const pageWidth = 210;
       const pageHeight = 297;
-      const imgWidth = pageWidth;
+      const margin = 5;
+      const imgWidth = pageWidth - margin * 2;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
       let heightLeft = imgHeight;
-      let position = 0;
+      let position = margin;
 
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight - margin * 2;
 
       while (heightLeft > 0) {
-        position -= pageHeight;
+        position -= pageHeight - margin;
         pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+        pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight - margin * 2;
       }
 
-      pdf.save("PlyoLab_Report.pdf");
-    } catch {
-      // silently fail
+      const name = athleteName || "Athlete";
+      const dateStr = new Date().toISOString().slice(0, 10);
+      pdf.save(`PlyoLab_${name.replace(/\s+/g, "_")}_${dateStr}.pdf`);
+    } catch (err) {
+      console.log("[v0] PDF export error:", err);
     } finally {
       setLoading(false);
     }
