@@ -24,39 +24,36 @@ export function PdfExportButton({
 
       const el = document.getElementById(targetId);
       if (!el) {
-        console.log("[v0] PDF target element not found:", targetId);
         setLoading(false);
         return;
       }
 
-      const prevStyle = el.style.cssText;
-      el.style.backgroundColor = "#09090b";
-      el.style.color = "#fafafa";
-      el.style.padding = "24px";
+      // Clone and prepare for rendering
+      const clone = el.cloneNode(true) as HTMLElement;
+      clone.style.position = "absolute";
+      clone.style.left = "-9999px";
+      clone.style.top = "0";
+      clone.style.width = "1100px";
+      clone.style.backgroundColor = "#0a0a0b";
+      clone.style.color = "#fafafa";
+      clone.style.padding = "32px";
+      clone.style.zIndex = "-1";
 
-      const canvas = await html2canvas(el, {
+      // Resolve all CSS custom properties to computed values in the clone
+      document.body.appendChild(clone);
+
+      resolveComputedStyles(clone);
+
+      const canvas = await html2canvas(clone, {
         scale: 2,
-        backgroundColor: "#09090b",
+        backgroundColor: "#0a0a0b",
         useCORS: true,
         allowTaint: true,
         logging: false,
-        windowWidth: 1200,
-        onclone: (clonedDoc) => {
-          const svgs = clonedDoc.querySelectorAll("svg");
-          svgs.forEach((svg) => {
-            svg.setAttribute(
-              "width",
-              svg.getBoundingClientRect().width.toString()
-            );
-            svg.setAttribute(
-              "height",
-              svg.getBoundingClientRect().height.toString()
-            );
-          });
-        },
+        width: 1100,
       });
 
-      el.style.cssText = prevStyle;
+      document.body.removeChild(clone);
 
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
@@ -84,7 +81,7 @@ export function PdfExportButton({
       const dateStr = new Date().toISOString().slice(0, 10);
       pdf.save(`PlyoLab_${name.replace(/\s+/g, "_")}_${dateStr}.pdf`);
     } catch (err) {
-      console.log("[v0] PDF export error:", err);
+      console.error("PDF export error:", err);
     } finally {
       setLoading(false);
     }
@@ -109,4 +106,48 @@ export function PdfExportButton({
       Export PDF
     </button>
   );
+}
+
+/**
+ * Recursively resolve CSS custom properties on all elements so html2canvas
+ * can read actual color / size values instead of var(--token).
+ */
+function resolveComputedStyles(root: HTMLElement) {
+  const allElements = root.querySelectorAll("*");
+  const resolveProps = [
+    "color",
+    "backgroundColor",
+    "borderColor",
+    "borderTopColor",
+    "borderRightColor",
+    "borderBottomColor",
+    "borderLeftColor",
+    "outlineColor",
+    "fill",
+    "stroke",
+  ];
+
+  [root, ...Array.from(allElements)].forEach((node) => {
+    if (!(node instanceof HTMLElement)) return;
+    const computed = window.getComputedStyle(node);
+    for (const prop of resolveProps) {
+      const val = computed.getPropertyValue(prop);
+      if (val && val !== "transparent" && val !== "rgba(0, 0, 0, 0)") {
+        node.style.setProperty(prop, val);
+      }
+    }
+    // Also resolve font properties
+    node.style.fontFamily = computed.fontFamily;
+    node.style.fontSize = computed.fontSize;
+    node.style.fontWeight = computed.fontWeight;
+  });
+
+  // Fix SVGs: set explicit width/height attributes
+  root.querySelectorAll("svg").forEach((svg) => {
+    const rect = svg.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      svg.setAttribute("width", String(rect.width));
+      svg.setAttribute("height", String(rect.height));
+    }
+  });
 }

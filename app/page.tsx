@@ -121,35 +121,58 @@ export default function HomePage() {
       const { jsPDF } = await import("jspdf");
 
       const el = document.getElementById("pdf-content");
-      if (!el) {
-        console.log("[v0] PDF target element #pdf-content not found");
-        return;
-      }
+      if (!el) return;
 
-      // Temporarily make the element visible and styled for capture
-      const prevStyle = el.style.cssText;
-      el.style.backgroundColor = "#09090b";
-      el.style.color = "#fafafa";
-      el.style.padding = "24px";
+      // Clone element off-screen and resolve CSS custom properties
+      const clone = el.cloneNode(true) as HTMLElement;
+      clone.style.position = "absolute";
+      clone.style.left = "-9999px";
+      clone.style.top = "0";
+      clone.style.width = "1100px";
+      clone.style.backgroundColor = "#0a0a0b";
+      clone.style.color = "#fafafa";
+      clone.style.padding = "32px";
+      clone.style.zIndex = "-1";
+      document.body.appendChild(clone);
 
-      const canvas = await html2canvas(el, {
+      // Resolve all computed styles so html2canvas sees real values
+      const resolveProps = [
+        "color", "backgroundColor", "borderColor", "borderTopColor",
+        "borderRightColor", "borderBottomColor", "borderLeftColor",
+        "fill", "stroke",
+      ];
+      const allEls = clone.querySelectorAll("*");
+      [clone, ...Array.from(allEls)].forEach((node) => {
+        if (!(node instanceof HTMLElement)) return;
+        const computed = window.getComputedStyle(node);
+        for (const prop of resolveProps) {
+          const val = computed.getPropertyValue(prop);
+          if (val && val !== "transparent" && val !== "rgba(0, 0, 0, 0)") {
+            node.style.setProperty(prop, val);
+          }
+        }
+        node.style.fontFamily = computed.fontFamily;
+        node.style.fontSize = computed.fontSize;
+        node.style.fontWeight = computed.fontWeight;
+      });
+      clone.querySelectorAll("svg").forEach((svg) => {
+        const rect = svg.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          svg.setAttribute("width", String(rect.width));
+          svg.setAttribute("height", String(rect.height));
+        }
+      });
+
+      const canvas = await html2canvas(clone, {
         scale: 2,
-        backgroundColor: "#09090b",
+        backgroundColor: "#0a0a0b",
         useCORS: true,
         allowTaint: true,
         logging: false,
-        windowWidth: 1200,
-        onclone: (clonedDoc) => {
-          // Ensure SVGs in the cloned document render properly
-          const svgs = clonedDoc.querySelectorAll("svg");
-          svgs.forEach((svg) => {
-            svg.setAttribute("width", svg.getBoundingClientRect().width.toString());
-            svg.setAttribute("height", svg.getBoundingClientRect().height.toString());
-          });
-        },
+        width: 1100,
       });
 
-      el.style.cssText = prevStyle;
+      document.body.removeChild(clone);
 
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
@@ -175,7 +198,7 @@ export default function HomePage() {
       const dateStr = new Date().toISOString().slice(0, 10);
       pdf.save(`PlyoLab_${athleteName.replace(/\s+/g, "_")}_${dateStr}.pdf`);
     } catch (err) {
-      console.log("[v0] PDF export error:", err);
+      console.error("PDF export error:", err);
     }
   }, [meta]);
 
