@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: #09090b;
+  --color-foreground: #fafafa;
+  --color-card: #111113;
+  --color-card-foreground: #fafafa;
+  --color-muted: #18181b;
+  --color-muted-foreground: #71717a;
+  --color-border: #27272a;
+  --color-input: #18181b;
+  --color-primary: #f97316;
+  --color-primary-foreground: #ffffff;
+  --color-accent: #1c1c20;
+  --color-accent-foreground: #fafafa;
+  --color-destructive: #ef4444;
+  --color-ring: #f97316;
+  --color-score-green: #22c55e;
+  --color-score-amber: #eab308;
+  --color-score-red: #ef4444;
+  --color-surface: #0f0f12;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@utility score-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* Tooltip styles */
+@utility tooltip-trigger {
+  position: relative;
+  cursor: help;
+  border-bottom: 1px dashed var(--color-muted-foreground);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted-foreground);
+}
