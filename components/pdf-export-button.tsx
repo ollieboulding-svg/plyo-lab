@@ -29,10 +29,13 @@ export function PdfExportButton({
         return;
       }
 
-      const prevStyle = el.style.cssText;
-      el.style.backgroundColor = "#09090b";
-      el.style.color = "#fafafa";
-      el.style.padding = "24px";
+      // Collect computed SVG dimensions BEFORE cloning (getBoundingClientRect returns 0 in cloned DOM)
+      const originalSvgs = el.querySelectorAll("svg");
+      const svgSizes: { width: number; height: number }[] = [];
+      originalSvgs.forEach((svg) => {
+        const rect = svg.getBoundingClientRect();
+        svgSizes.push({ width: rect.width || 200, height: rect.height || 200 });
+      });
 
       const canvas = await html2canvas(el, {
         scale: 2,
@@ -41,22 +44,48 @@ export function PdfExportButton({
         allowTaint: true,
         logging: false,
         windowWidth: 1200,
-        onclone: (clonedDoc) => {
-          const svgs = clonedDoc.querySelectorAll("svg");
-          svgs.forEach((svg) => {
-            svg.setAttribute(
-              "width",
-              svg.getBoundingClientRect().width.toString()
-            );
-            svg.setAttribute(
-              "height",
-              svg.getBoundingClientRect().height.toString()
-            );
+        onclone: (_clonedDoc, clonedEl) => {
+          clonedEl.style.backgroundColor = "#09090b";
+          clonedEl.style.color = "#fafafa";
+          clonedEl.style.padding = "24px";
+          clonedEl.style.width = "1200px";
+
+          // Forward CSS custom properties into the clone
+          const computedBody = getComputedStyle(document.body);
+          const cssVars = [
+            "--color-background", "--color-foreground", "--color-card",
+            "--color-card-foreground", "--color-muted", "--color-muted-foreground",
+            "--color-border", "--color-input", "--color-primary",
+            "--color-primary-foreground", "--color-accent", "--color-accent-foreground",
+            "--color-destructive", "--color-ring", "--color-score-green",
+            "--color-score-amber", "--color-score-red", "--color-surface",
+          ];
+          cssVars.forEach((v) => {
+            const val = computedBody.getPropertyValue(v);
+            if (val) clonedEl.style.setProperty(v, val);
+          });
+
+          // Apply pre-collected SVG sizes to the cloned elements
+          const clonedSvgs = clonedEl.querySelectorAll("svg");
+          clonedSvgs.forEach((svg, i) => {
+            if (svgSizes[i]) {
+              svg.setAttribute("width", String(svgSizes[i].width));
+              svg.setAttribute("height", String(svgSizes[i].height));
+              svg.style.width = svgSizes[i].width + "px";
+              svg.style.height = svgSizes[i].height + "px";
+              svg.style.overflow = "visible";
+            }
+          });
+
+          // Fix Recharts responsive containers
+          const containers = clonedEl.querySelectorAll(".recharts-responsive-container");
+          containers.forEach((c) => {
+            const htmlEl = c as HTMLElement;
+            htmlEl.style.width = "1100px";
+            htmlEl.style.height = "320px";
           });
         },
       });
-
-      el.style.cssText = prevStyle;
 
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
