@@ -222,10 +222,74 @@ export default function HomePage() {
         pdf.save(fileName);
       }
     } catch (err) {
-      console.error("PDF export error:", err);
-      alert("PDF export failed. If the issue persists, try on a desktop browser.");
+     async function exportPDF(targetId: string, athleteName?: string) {
+  try {
+    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+      import("html2canvas"),
+      import("jspdf"),
+    ]);
+
+    const el = document.getElementById(targetId);
+    if (!el) {
+      alert("PDF content not found. Please run an assessment first.");
+      return;
     }
-  }, [meta]);
+
+    // Wait for fonts so text appears in the capture
+    // @ts-ignore
+    if (document.fonts?.ready) {
+      // @ts-ignore
+      await document.fonts.ready;
+    }
+
+    // Give charts/layout a moment to paint
+    await new Promise((r) => setTimeout(r, 200));
+
+    const canvas = await html2canvas(el, {
+      scale: 2,
+      backgroundColor: "#ffffff",
+      useCORS: true,
+      allowTaint: false,
+      logging: false,
+      scrollY: -window.scrollY,
+      windowWidth: 1200,
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const margin = 6;
+
+    const imgWidth = pageWidth - margin * 2;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    let remaining = imgHeight;
+
+    pdf.addImage(imgData, "PNG", margin, margin, imgWidth, imgHeight);
+    remaining -= pageHeight - margin * 2;
+
+    while (remaining > 0) {
+      pdf.addPage();
+      const offsetY = margin - (imgHeight - remaining);
+      pdf.addImage(imgData, "PNG", margin, offsetY, imgWidth, imgHeight);
+      remaining -= pageHeight - margin * 2;
+    }
+
+    const name = (athleteName || "Athlete")
+      .trim()
+      .replace(/[^\w\s-]/g, "")
+      .replace(/\s+/g, "_")
+      .slice(0, 50);
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    pdf.save(`PlyoLab_${name}_${dateStr}.pdf`);
+  } catch (err: any) {
+    console.error("PDF export error:", err);
+    alert("PDF export failed: " + (err?.message || String(err)));
+  }
+}
 
   // Compute hero stats
   const scores = currentResult?.scores ?? [];
