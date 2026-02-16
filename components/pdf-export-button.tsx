@@ -25,8 +25,8 @@ function safeFileName(name: string) {
 /**
  * Fallback: open a print window containing only the report area.
  * Parents can "Save as PDF" (desktop) or "Share/Print to PDF" (mobile).
- * This bypasses html-to-image/html2canvas edge cases entirely.
- */
+ 
+
 function printFallback(el: HTMLElement, title: string) {
   const w = window.open("", "_blank", "noopener,noreferrer");
   if (!w) {
