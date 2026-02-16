@@ -209,9 +209,21 @@ export default function HomePage() {
 
       const athleteName = meta?.name || "Athlete";
       const dateStr = new Date().toISOString().slice(0, 10);
-      pdf.save(`PlyoLab_${athleteName.replace(/\s+/g, "_")}_${dateStr}.pdf`);
+      const fileName = `PlyoLab_${athleteName.replace(/\s+/g, "_")}_${dateStr}.pdf`;
+
+      // iOS Safari blocks direct downloads -- open in new tab instead
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if (isIOS) {
+        const blob = pdf.output("blob");
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+      } else {
+        pdf.save(fileName);
+      }
     } catch (err) {
-      console.log("[v0] PDF export error:", err);
+      console.error("PDF export error:", err);
+      alert("PDF export failed. If the issue persists, try on a desktop browser.");
     }
   }, [meta]);
 

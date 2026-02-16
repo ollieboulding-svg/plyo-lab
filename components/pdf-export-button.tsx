@@ -9,6 +9,11 @@ interface PdfExportButtonProps {
   athleteName?: string;
 }
 
+function isIOS(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent);
+}
+
 export function PdfExportButton({
   targetId,
   variant = "default",
@@ -19,22 +24,28 @@ export function PdfExportButton({
   async function handleExport() {
     setLoading(true);
     try {
-      const html2canvas = (await import("html2canvas")).default;
-      const { jsPDF } = await import("jspdf");
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
 
       const el = document.getElementById(targetId);
       if (!el) {
-        console.log("[v0] PDF target element not found:", targetId);
+        alert("PDF content not found. Please run an assessment first.");
         setLoading(false);
         return;
       }
 
-      // Collect computed SVG dimensions BEFORE cloning (getBoundingClientRect returns 0 in cloned DOM)
+      // Collect computed SVG dimensions BEFORE cloning
+      // (getBoundingClientRect returns 0 in cloned/off-screen DOM)
       const originalSvgs = el.querySelectorAll("svg");
       const svgSizes: { width: number; height: number }[] = [];
       originalSvgs.forEach((svg) => {
         const rect = svg.getBoundingClientRect();
-        svgSizes.push({ width: rect.width || 200, height: rect.height || 200 });
+        svgSizes.push({
+          width: rect.width || 200,
+          height: rect.height || 200,
+        });
       });
 
       const canvas = await html2canvas(el, {
@@ -44,7 +55,8 @@ export function PdfExportButton({
         allowTaint: true,
         logging: false,
         windowWidth: 1200,
-        onclone: (_clonedDoc, clonedEl) => {
+        onclone: (_clonedDoc: Document, clonedEl: HTMLElement) => {
+          // Style the cloned root for capture
           clonedEl.style.backgroundColor = "#09090b";
           clonedEl.style.color = "#fafafa";
           clonedEl.style.padding = "24px";
@@ -53,19 +65,31 @@ export function PdfExportButton({
           // Forward CSS custom properties into the clone
           const computedBody = getComputedStyle(document.body);
           const cssVars = [
-            "--color-background", "--color-foreground", "--color-card",
-            "--color-card-foreground", "--color-muted", "--color-muted-foreground",
-            "--color-border", "--color-input", "--color-primary",
-            "--color-primary-foreground", "--color-accent", "--color-accent-foreground",
-            "--color-destructive", "--color-ring", "--color-score-green",
-            "--color-score-amber", "--color-score-red", "--color-surface",
+            "--color-background",
+            "--color-foreground",
+            "--color-card",
+            "--color-card-foreground",
+            "--color-muted",
+            "--color-muted-foreground",
+            "--color-border",
+            "--color-input",
+            "--color-primary",
+            "--color-primary-foreground",
+            "--color-accent",
+            "--color-accent-foreground",
+            "--color-destructive",
+            "--color-ring",
+            "--color-score-green",
+            "--color-score-amber",
+            "--color-score-red",
+            "--color-surface",
           ];
           cssVars.forEach((v) => {
             const val = computedBody.getPropertyValue(v);
             if (val) clonedEl.style.setProperty(v, val);
           });
 
-          // Apply pre-collected SVG sizes to the cloned elements
+          // Apply pre-collected SVG sizes to cloned elements
           const clonedSvgs = clonedEl.querySelectorAll("svg");
           clonedSvgs.forEach((svg, i) => {
             if (svgSizes[i]) {
@@ -78,7 +102,9 @@ export function PdfExportButton({
           });
 
           // Fix Recharts responsive containers
-          const containers = clonedEl.querySelectorAll(".recharts-responsive-container");
+          const containers = clonedEl.querySelectorAll(
+            ".recharts-responsive-container"
+          );
           containers.forEach((c) => {
             const htmlEl = c as HTMLElement;
             htmlEl.style.width = "1100px";
@@ -111,9 +137,22 @@ export function PdfExportButton({
 
       const name = athleteName || "Athlete";
       const dateStr = new Date().toISOString().slice(0, 10);
-      pdf.save(`PlyoLab_${name.replace(/\s+/g, "_")}_${dateStr}.pdf`);
+      const fileName = `PlyoLab_${name.replace(/\s+/g, "_")}_${dateStr}.pdf`;
+
+      // iOS Safari blocks direct downloads -- open in new tab instead
+      if (isIOS()) {
+        const blob = pdf.output("blob");
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+      } else {
+        pdf.save(fileName);
+      }
     } catch (err) {
-      console.log("[v0] PDF export error:", err);
+      console.error("PDF export error:", err);
+      alert(
+        "PDF export failed. If the issue persists, try on a desktop browser."
+      );
     } finally {
       setLoading(false);
     }
