@@ -14,6 +14,65 @@ function isIOS(): boolean {
   return /iPad|iPhone|iPod/.test(navigator.userAgent);
 }
 
+function safeFileName(name: string) {
+  return (name || "Athlete")
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "_")
+    .slice(0, 50);
+}
+
+/**
+ * Fallback: open a print window containing only the report area.
+ * Parents can "Save as PDF" (desktop) or "Share/Print to PDF" (mobile).
+ 
+
+function printFallback(el: HTMLElement, title: string) {
+  const w = window.open("", "_blank", "noopener,noreferrer");
+  if (!w) {
+    alert("Popup blocked. Please allow popups to export PDF.");
+    return;
+  }
+
+  // Copy stylesheets to new window so it looks the same
+  const styles = Array.from(document.querySelectorAll("link[rel='stylesheet'], style"))
+    .map((node) => node.outerHTML)
+    .join("\n");
+
+  w.document.open();
+  w.document.write(`
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>${title}</title>
+        ${styles}
+        <style>
+          /* Print optimizations */
+          @page { size: A4; margin: 10mm; }
+          body { background: white !important; }
+          /* Force the report to be full width in print */
+          #__print_root { width: 100% !important; }
+          /* Avoid cut-off of charts/cards */
+          * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        </style>
+      </head>
+      <body>
+        <div id="__print_root">${el.outerHTML}</div>
+        <script>
+          window.onload = () => {
+            setTimeout(() => {
+              window.print();
+            }, 300);
+          };
+        </script>
+      </body>
+    </html>
+  `);
+  w.document.close();
+}
+
 export function PdfExportButton({
   targetId,
   variant = "default",
@@ -23,6 +82,7 @@ export function PdfExportButton({
 
   async function handleExport() {
     setLoading(true);
+
     try {
       const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
         import("html2canvas"),
@@ -32,85 +92,27 @@ export function PdfExportButton({
       const el = document.getElementById(targetId);
       if (!el) {
         alert("PDF content not found. Please run an assessment first.");
-        setLoading(false);
         return;
       }
 
-      // Collect computed SVG dimensions BEFORE cloning
-      // (getBoundingClientRect returns 0 in cloned/off-screen DOM)
-      const originalSvgs = el.querySelectorAll("svg");
-      const svgSizes: { width: number; height: number }[] = [];
-      originalSvgs.forEach((svg) => {
-        const rect = svg.getBoundingClientRect();
-        svgSizes.push({
-          width: rect.width || 200,
-          height: rect.height || 200,
-        });
-      });
+      // Wait for fonts
+      // @ts-ignore
+      if (document.fonts?.ready) {
+        // @ts-ignore
+        await document.fonts.ready;
+      }
+
+      // Let charts/layout settle
+      await new Promise((r) => setTimeout(r, 200));
 
       const canvas = await html2canvas(el, {
         scale: 2,
-        backgroundColor: "#09090b",
+        backgroundColor: "#ffffff", // safer for print/PDF
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         logging: false,
+        scrollY: -window.scrollY,
         windowWidth: 1200,
-        onclone: (_clonedDoc: Document, clonedEl: HTMLElement) => {
-          // Style the cloned root for capture
-          clonedEl.style.backgroundColor = "#09090b";
-          clonedEl.style.color = "#fafafa";
-          clonedEl.style.padding = "24px";
-          clonedEl.style.width = "1200px";
-
-          // Forward CSS custom properties into the clone
-          const computedBody = getComputedStyle(document.body);
-          const cssVars = [
-            "--color-background",
-            "--color-foreground",
-            "--color-card",
-            "--color-card-foreground",
-            "--color-muted",
-            "--color-muted-foreground",
-            "--color-border",
-            "--color-input",
-            "--color-primary",
-            "--color-primary-foreground",
-            "--color-accent",
-            "--color-accent-foreground",
-            "--color-destructive",
-            "--color-ring",
-            "--color-score-green",
-            "--color-score-amber",
-            "--color-score-red",
-            "--color-surface",
-          ];
-          cssVars.forEach((v) => {
-            const val = computedBody.getPropertyValue(v);
-            if (val) clonedEl.style.setProperty(v, val);
-          });
-
-          // Apply pre-collected SVG sizes to cloned elements
-          const clonedSvgs = clonedEl.querySelectorAll("svg");
-          clonedSvgs.forEach((svg, i) => {
-            if (svgSizes[i]) {
-              svg.setAttribute("width", String(svgSizes[i].width));
-              svg.setAttribute("height", String(svgSizes[i].height));
-              svg.style.width = svgSizes[i].width + "px";
-              svg.style.height = svgSizes[i].height + "px";
-              svg.style.overflow = "visible";
-            }
-          });
-
-          // Fix Recharts responsive containers
-          const containers = clonedEl.querySelectorAll(
-            ".recharts-responsive-container"
-          );
-          containers.forEach((c) => {
-            const htmlEl = c as HTMLElement;
-            htmlEl.style.width = "1100px";
-            htmlEl.style.height = "320px";
-          });
-        },
       });
 
       const imgData = canvas.toDataURL("image/png");
@@ -118,28 +120,27 @@ export function PdfExportButton({
 
       const pageWidth = 210;
       const pageHeight = 297;
-      const margin = 5;
+      const margin = 6;
+
       const imgWidth = pageWidth - margin * 2;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-      let heightLeft = imgHeight;
-      let position = margin;
+      let remaining = imgHeight;
 
-      pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight - margin * 2;
+      pdf.addImage(imgData, "PNG", margin, margin, imgWidth, imgHeight);
+      remaining -= pageHeight - margin * 2;
 
-      while (heightLeft > 0) {
-        position -= pageHeight - margin;
+      while (remaining > 0) {
         pdf.addPage();
-        pdf.addImage(imgData, "PNG", margin, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight - margin * 2;
+        const offsetY = margin - (imgHeight - remaining);
+        pdf.addImage(imgData, "PNG", margin, offsetY, imgWidth, imgHeight);
+        remaining -= pageHeight - margin * 2;
       }
 
-      const name = athleteName || "Athlete";
       const dateStr = new Date().toISOString().slice(0, 10);
-      const fileName = `PlyoLab_${name.replace(/\s+/g, "_")}_${dateStr}.pdf`;
+      const fileName = `PlyoLab_${safeFileName(athleteName)}_${dateStr}.pdf`;
 
-      // iOS Safari blocks direct downloads -- open in new tab instead
+      // iOS: open in new tab
       if (isIOS()) {
         const blob = pdf.output("blob");
         const url = URL.createObjectURL(blob);
@@ -148,11 +149,22 @@ export function PdfExportButton({
       } else {
         pdf.save(fileName);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("PDF export error:", err);
-      alert(
-        "PDF export failed. If the issue persists, try on a desktop browser."
-      );
+
+      // If we still see 'lab' errors, it means something in the pipeline is still parsing colors.
+      // Fall back to browser-native print -> Save as PDF.
+      const el = document.getElementById(targetId);
+      if (el) {
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const title = `PlyoLab_${safeFileName(athleteName)}_${dateStr}`;
+        alert(
+          "Direct PDF export failed on this device/browser. Opening Print view instead (Save as PDF / Share as PDF)."
+        );
+        printFallback(el as HTMLElement, title);
+      } else {
+        alert("PDF export failed. Please run an assessment first.");
+      }
     } finally {
       setLoading(false);
     }
